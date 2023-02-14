@@ -9,13 +9,13 @@ Use an appropriate GPU for your workload. This script does not do int8 training,
 >A basic rule of thumb is to assume you'll typically around require 8GB VRAM per billion params in the model at training time, and 2GB VRAM per billion params at inference-time for the same model.
 
 ## Basic Usage
-Here is a minimal example to finetune gpt2 on famous English quotes:
+Here is a minimal example to finetune gpt2 on famous English quotes.
 ```bash
 # Install Python requirements
 pip install -r requirements.txt
 
 # Minimal example, will output Lora model to models/calum/my-custom-gpt2
-cd src && python train.py \
+python train.py \
 --base_model "gpt2" \
 --peft_model "calum/my-custom-gpt2" \
 --dataset_name "Abirate/english_quotes" \
@@ -23,8 +23,30 @@ cd src && python train.py \
 --max_steps 1000
 ```
 
-## Advanced Usage
-Of course, you can customize use of the script to your liking. Here is a full list of valid arguments to the training script, separated by their use case.
+Once finetuned, you can run the minimal inference script to generate text from your new model interactively.
+```bash
+python inference.py \
+--model "calum/my-custom-gpt2"
+```
+<br>
+
+## Advanced usage of Inference Script
+Here is a list of all the arguments you can use to customize the inference script.
+
+
+| Argument | Description | Required | Default |
+| --- | --- | --- | --- |
+| `model` | The url or file path of the tuned model to use. | `Yes` | `None` |
+| `tokenizer` | The tokenizer to use, if different from the base model. | `No` | `base model tokenizer` |
+| `max_tokens` | The maximum number of tokens to be generated. | `No` | `64` |
+| `temperature` | The temperature to use for sampling. | `No` | `1.0` |
+| `top_p` | The top p to use for sampling. | `No` | `0.9` |
+| `repetition_penalty` | The repetition penalty to use for sampling. | `No` | `1.0` |
+___
+<br>
+
+## Advanced usage of Training Script
+Here is a list of all the arguments you can use to customize the training script, roughly organized by category.
 
 
 ### Model Tokenizer names:
