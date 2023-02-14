@@ -1,9 +1,16 @@
 import argparse
 from peft import LoraConfig, get_peft_model
 from util import freeze_model, print_trainable_parameters
-from transformers import AutoTokenizer, AutoModelForCausalLM, DataCollatorForLanguageModeling, Trainer, TrainingArguments
+from transformers import (
+    AutoTokenizer,
+    AutoModelForCausalLM,
+    DataCollatorForLanguageModeling,
+    Trainer,
+    TrainingArguments,
+)
 from datasets import load_dataset
 import os
+
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
@@ -14,7 +21,7 @@ def train_peft(args):
     # Load our model
     base_model = AutoModelForCausalLM.from_pretrained(
         args.base_model,
-        device_map='auto',
+        device_map="auto",
     )
 
     # Allow use of a custom tokenizer
@@ -24,7 +31,7 @@ def train_peft(args):
     # Check if we need to add a pad token, and if so, add it
     # and resize the model accordingly
     if tokenizer.pad_token is None:
-        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+        tokenizer.add_special_tokens({"pad_token": "[PAD]"})
         base_model.resize_token_embeddings(len(tokenizer))
 
     # Freeze the base model before we add the adapter
@@ -43,9 +50,11 @@ def train_peft(args):
 
     # Load our dataset
     data = load_dataset(
-        args.dataset_name, split=args.dataset_split, data_dir=args.dataset_datadir)
-    train_data = data.map(lambda samples: tokenizer(
-        samples[args.dataset_train_col]), batched=True)
+        args.dataset_name, split=args.dataset_split, data_dir=args.dataset_datadir
+    )
+    train_data = data.map(
+        lambda samples: tokenizer(samples[args.dataset_train_col]), batched=True
+    )
     data_collator = DataCollatorForLanguageModeling(tokenizer, mlm=False)
 
     # Load our trainer!
@@ -62,7 +71,7 @@ def train_peft(args):
             logging_steps=args.logging_steps,
             output_dir=output_dir,
         ),
-        data_collator=data_collator
+        data_collator=data_collator,
     )
 
     # Silence cache warnings. This needs to be re-enabled for inference
@@ -75,7 +84,7 @@ def train_peft(args):
     model.save_pretrained(output_dir)
 
     # Maybe send it to the hub
-    if (args.push_to_hub):
+    if args.push_to_hub:
         model.push_to_hub(args.peft_model)
 
 
@@ -100,13 +109,15 @@ def extract_args(args):
     dataset_group = parser.add_argument_group("Dataset")
     dataset_group.add_argument("--dataset_name", type=str, required=True)
     dataset_group.add_argument(
-        "--dataset_split", type=str, required=False, default="train")
+        "--dataset_split", type=str, required=False, default="train"
+    )
     dataset_group.add_argument(
-        "--dataset_datadir", type=str, required=False, default=None)
+        "--dataset_datadir", type=str, required=False, default=None
+    )
     dataset_group.add_argument("--dataset_train_col", type=str, required=True)
 
     # ===
-    # Allow custom hyperparams
+    # Allow custom hyperparams for trainer and PEFT method of choice
     # ===
 
     # Trainer params
@@ -114,17 +125,21 @@ def extract_args(args):
     trainer_hparams.add_argument(
         "--batch_size", type=int, required=False, default=4)
     trainer_hparams.add_argument(
-        "--gradient_accumulation_steps", type=int, required=False, default=4)
+        "--gradient_accumulation_steps", type=int, required=False, default=4
+    )
     trainer_hparams.add_argument(
-        "--warmup_steps", type=int, required=False, default=100)
+        "--warmup_steps", type=int, required=False, default=100
+    )
     trainer_hparams.add_argument(
         "--max_steps", type=int, required=False, default=1000)
     trainer_hparams.add_argument(
-        "--learning_rate", type=float, required=False, default=1e-4)
+        "--learning_rate", type=float, required=False, default=1e-4
+    )
     trainer_hparams.add_argument(
         "--fp16", type=bool, required=False, default=True)
     trainer_hparams.add_argument(
-        "--logging_steps", type=int, required=False, default=100)
+        "--logging_steps", type=int, required=False, default=100
+    )
 
     # Lora param
     lora_hparams = parser.add_argument_group("Lora")
@@ -132,11 +147,13 @@ def extract_args(args):
     lora_hparams.add_argument("--lora_alpha", type=int,
                               required=False, default=32)
     lora_hparams.add_argument(
-        "--lora_dropout", type=float, required=False, default=0.05)
+        "--lora_dropout", type=float, required=False, default=0.05
+    )
     lora_hparams.add_argument("--lora_bias", type=str,
                               required=False, default="none")
     lora_hparams.add_argument(
-        "--lora_task_type", type=str, required=False, default="CAUSAL_LM")
+        "--lora_task_type", type=str, required=False, default="CAUSAL_LM"
+    )
 
     # ===
     # Require an output directory
@@ -155,5 +172,6 @@ def extract_args(args):
 
 if __name__ == "__main__":
     import sys
+
     args = extract_args(sys.argv[1:])
     train_peft(args)
