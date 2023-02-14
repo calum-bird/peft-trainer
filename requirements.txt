@@ -1,0 +1,6 @@
+bitsandbytes
+datasets
+accelerate
+loralib
+git+https://github.com/huggingface/transformers.git@main
+git+https://github.com/huggingface/peft.git
