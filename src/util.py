@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 def freeze_model(model):
     for param in model.parameters():
         param.requires_grad = False  # freeze the model - train adapters later
@@ -13,9 +14,10 @@ def freeze_model(model):
 
     class CastOutputToFloat(nn.Sequential):
         def forward(self, x): return super().forward(x).to(torch.float32)
-    
+
     model.lm_head = CastOutputToFloat(model.lm_head)
-    
+
+
 def print_trainable_parameters(model):
     """
     Prints the number of trainable parameters in the model.
