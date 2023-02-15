@@ -1,7 +1,41 @@
 import argparse
+from peft import PeftModel, PeftConfig
+from queue import Queue
+import threading
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from peft import PeftModel, PeftConfig
+from transformers import StoppingCriteria, StoppingCriteriaList
+
+# Queue for streaming output
+queue = Queue()
+
+# Our streaming hack using stopping criteria :)
+
+
+class Stream(StoppingCriteria):
+    def __init__(self, q):
+        self.q = q
+
+    def __call__(self, input_ids, scores) -> bool:
+        # input_ids is a list of lists, where the inner list is the
+        # token ids for a single sequence. We only have one sequence
+        # in this case, so we take the first inner list.
+
+        # Place the latest token from the single sequence in our queue
+        self.q.put(input_ids[0][-1])
+        return False
+
+
+def gen(model, batch, max_new_tokens, temperature, top_p, repetition_penalty):
+    model.generate(
+        **batch,
+        max_new_tokens=max_new_tokens,
+        temperature=temperature,
+        top_p=top_p,
+        repetition_penalty=repetition_penalty,
+        stopping_criteria=StoppingCriteriaList([Stream(queue)]),
+    )
+    queue.put(False)
 
 
 def run_peft(args):
@@ -42,15 +76,35 @@ def run_peft(args):
             wants_exit = True
             continue
 
-        # Tokenize our prompt and generate
+        # Tokenize our prompt and generate with our fancy async loop
+        # which lets us stream the output token by token :)
         batch = tokenizer(prompt, return_tensors='pt').to('cuda')
         with torch.cuda.amp.autocast():
-            output_tokens = model.generate(**batch, max_new_tokens=args.max_tokens, temperature=args.temperature,
-                                           top_p=args.top_p, repetition_penalty=args.repetition_penalty)
+            gen_kwargs = {
+                "model": model,
+                "batch": batch,
+                "max_new_tokens": args.max_tokens,
+                "temperature": args.temperature,
+                "top_p": args.top_p,
+                "repetition_penalty": args.repetition_penalty
+            }
 
-        # Decode result and print
-        decoded = tokenizer.decode(output_tokens[0], skip_special_tokens=True)
-        print(decoded, '\n\n')
+            print('\n===== START =====\n')
+            threading.Thread(target=gen, kwargs=gen_kwargs).start()
+            sequence = []
+            print(prompt, end='', flush=True)
+            while True:
+                i = queue.get()
+                if (i is False):
+                    break
+                else:
+                    # Decode the token, add it to our sequence, and print it
+                    next_token = tokenizer.decode(i, skip_special_tokens=True)
+                    sequence.append(next_token)
+                    print(next_token, end='', flush=True)
+
+        # Print a final few lines to signal that we're done
+        print('\n===== DONE =====\n')
 
 
 def extract_args(args):
