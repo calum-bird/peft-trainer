@@ -10,6 +10,7 @@ from transformers import StoppingCriteria, StoppingCriteriaList
 queue = Queue()
 
 # Our streaming hack using stopping criteria :)
+# Source: https://github.com/huggingface/transformers/issues/17365#issuecomment-1152192715
 
 
 class Stream(StoppingCriteria):
